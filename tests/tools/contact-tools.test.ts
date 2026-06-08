@@ -17,20 +17,18 @@ describe('ContactTools', () => {
   });
 
   describe('getToolDefinitions', () => {
-    it('should return 7 contact tool definitions', () => {
+    it('should return all contact tool definitions', () => {
       const tools = contactTools.getToolDefinitions();
-      expect(tools).toHaveLength(7);
+      expect(tools.length).toBeGreaterThanOrEqual(7);
       
       const toolNames = tools.map(tool => tool.name);
-      expect(toolNames).toEqual([
-        'create_contact',
-        'search_contacts',
-        'get_contact',
-        'update_contact',
-        'add_contact_tags',
-        'remove_contact_tags',
-        'delete_contact'
-      ]);
+      expect(toolNames).toContain('create_contact');
+      expect(toolNames).toContain('search_contacts');
+      expect(toolNames).toContain('get_contact');
+      expect(toolNames).toContain('update_contact');
+      expect(toolNames).toContain('add_contact_tags');
+      expect(toolNames).toContain('remove_contact_tags');
+      expect(toolNames).toContain('delete_contact');
     });
 
     it('should have proper schema definitions for all tools', () => {

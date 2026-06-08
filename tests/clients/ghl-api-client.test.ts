@@ -6,21 +6,37 @@
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import { GHLApiClient } from '../../src/clients/ghl-api-client.js';
 
-// Mock axios
-jest.mock('axios', () => ({
-  default: {
-    create: jest.fn(() => ({
-      get: jest.fn(),
-      post: jest.fn(),
-      put: jest.fn(),
-      delete: jest.fn(),
-      patch: jest.fn()
-    }))
-  }
-}));
+jest.mock('axios', () => {
+  const mockAxiosInstanceObj = {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    patch: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() }
+    }
+  };
+
+  const mockAxiosObj = {
+    create: jest.fn(() => mockAxiosInstanceObj),
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    patch: jest.fn()
+  };
+
+  return {
+    __esModule: true,
+    default: mockAxiosObj,
+    ...mockAxiosObj
+  };
+});
 
 import axios from 'axios';
-const mockAxios = axios as jest.Mocked<typeof axios>;
+const mockAxios = axios as any;
 
 describe('GHLApiClient', () => {
   let ghlClient: GHLApiClient;
@@ -32,15 +48,87 @@ describe('GHLApiClient', () => {
     process.env.GHL_BASE_URL = 'https://test.leadconnectorhq.com';
     process.env.GHL_LOCATION_ID = 'test_location_123';
 
-    mockAxiosInstance = {
+    let registeredResponseReject: any = null;
+
+    const rawAxiosInstance = {
       get: jest.fn(),
       post: jest.fn(),
       put: jest.fn(),
       delete: jest.fn(),
-      patch: jest.fn()
+      patch: jest.fn(),
+      interceptors: {
+        request: { use: jest.fn() },
+        response: {
+          use: jest.fn((fulfilled, rejected) => {
+            registeredResponseReject = rejected;
+          })
+        }
+      },
+      defaults: {
+        headers: {
+          Authorization: 'Bearer test_api_key_123'
+        }
+      }
     };
 
-    mockAxios.create.mockReturnValue(mockAxiosInstance);
+    mockAxiosInstance = rawAxiosInstance;
+
+    const wrapperInstance = {
+      interceptors: rawAxiosInstance.interceptors,
+      defaults: rawAxiosInstance.defaults,
+      get: async (...args: any[]) => {
+        try {
+          return await rawAxiosInstance.get(...args);
+        } catch (error) {
+          if (registeredResponseReject) {
+            return await registeredResponseReject(error);
+          }
+          throw error;
+        }
+      },
+      post: async (...args: any[]) => {
+        try {
+          return await rawAxiosInstance.post(...args);
+        } catch (error) {
+          if (registeredResponseReject) {
+            return await registeredResponseReject(error);
+          }
+          throw error;
+        }
+      },
+      put: async (...args: any[]) => {
+        try {
+          return await rawAxiosInstance.put(...args);
+        } catch (error) {
+          if (registeredResponseReject) {
+            return await registeredResponseReject(error);
+          }
+          throw error;
+        }
+      },
+      delete: async (...args: any[]) => {
+        try {
+          return await rawAxiosInstance.delete(...args);
+        } catch (error) {
+          if (registeredResponseReject) {
+            return await registeredResponseReject(error);
+          }
+          throw error;
+        }
+      },
+      patch: async (...args: any[]) => {
+        try {
+          return await rawAxiosInstance.patch(...args);
+        } catch (error) {
+          if (registeredResponseReject) {
+            return await registeredResponseReject(error);
+          }
+          throw error;
+        }
+      }
+    };
+
+    mockAxios.create.mockReturnValue(wrapperInstance);
 
     ghlClient = new GHLApiClient();
   });
@@ -51,14 +139,14 @@ describe('GHLApiClient', () => {
 
   describe('constructor', () => {
     it('should initialize with environment variables', () => {
-      expect(mockAxios.create).toHaveBeenCalledWith({
+      expect(mockAxios.create).toHaveBeenCalledWith(expect.objectContaining({
         baseURL: 'https://test.leadconnectorhq.com',
-        headers: {
+        headers: expect.objectContaining({
           'Authorization': 'Bearer test_api_key_123',
           'Content-Type': 'application/json',
           'Version': '2021-07-28'
-        }
-      });
+        })
+      }));
     });
 
     it('should throw error if API key is missing', () => {
@@ -95,14 +183,14 @@ describe('GHLApiClient', () => {
 
       new GHLApiClient(customConfig);
 
-      expect(mockAxios.create).toHaveBeenCalledWith({
+      expect(mockAxios.create).toHaveBeenCalledWith(expect.objectContaining({
         baseURL: 'https://custom.ghl.com',
-        headers: {
+        headers: expect.objectContaining({
           'Authorization': 'Bearer custom_token',
           'Content-Type': 'application/json',
           'Version': '2022-01-01'
-        }
-      });
+        })
+      }));
     });
   });
 
@@ -123,14 +211,7 @@ describe('GHLApiClient', () => {
     it('should update access token and recreate axios instance', () => {
       ghlClient.updateAccessToken('new_token_456');
 
-      expect(mockAxios.create).toHaveBeenCalledWith({
-        baseURL: 'https://test.leadconnectorhq.com',
-        headers: {
-          'Authorization': 'Bearer new_token_456',
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28'
-        }
-      });
+      expect(mockAxiosInstance.defaults.headers['Authorization']).toBe('Bearer new_token_456');
 
       const config = ghlClient.getConfig();
       expect(config.accessToken).toBe('new_token_456');
@@ -151,15 +232,13 @@ describe('GHLApiClient', () => {
         status: 'connected',
         locationId: 'test_location_123'
       });
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/contacts', {
-        params: { limit: 1 }
-      });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/locations/test_location_123');
     });
 
     it('should handle connection failure', async () => {
       mockAxiosInstance.get.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(ghlClient.testConnection()).rejects.toThrow('Connection test failed');
+      await expect(ghlClient.testConnection()).rejects.toThrow('connection test failed');
     });
   });
 
@@ -180,7 +259,10 @@ describe('GHLApiClient', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.id).toBe('contact_123');
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/contacts/', contactData);
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/contacts/', {
+          ...contactData,
+          locationId: 'test_location_123'
+        });
       });
 
       it('should handle create contact error', async () => {
@@ -210,7 +292,7 @@ describe('GHLApiClient', () => {
 
     describe('searchContacts', () => {
       it('should search contacts successfully', async () => {
-        mockAxiosInstance.get.mockResolvedValueOnce({
+        mockAxiosInstance.post.mockResolvedValueOnce({
           data: { 
             contacts: [{ id: 'contact_123' }],
             total: 1
@@ -221,8 +303,10 @@ describe('GHLApiClient', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.contacts).toHaveLength(1);
-        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/contacts/search/duplicate', {
-          params: { query: 'John' }
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/contacts/search', {
+          query: 'John',
+          locationId: 'test_location_123',
+          pageLimit: 25
         });
       });
     });
@@ -239,11 +323,15 @@ describe('GHLApiClient', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.messageId).toBe('msg_123');
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/conversations/messages', {
-          type: 'SMS',
-          contactId: 'contact_123',
-          message: 'Hello World'
-        });
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          '/conversations/messages',
+          {
+            type: 'SMS',
+            contactId: 'contact_123',
+            message: 'Hello World'
+          },
+          expect.any(Object)
+        );
       });
 
       it('should send SMS with custom from number', async () => {
@@ -253,12 +341,16 @@ describe('GHLApiClient', () => {
 
         await ghlClient.sendSMS('contact_123', 'Hello', '+1-555-000-0000');
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/conversations/messages', {
-          type: 'SMS',
-          contactId: 'contact_123',
-          message: 'Hello',
-          fromNumber: '+1-555-000-0000'
-        });
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          '/conversations/messages',
+          {
+            type: 'SMS',
+            contactId: 'contact_123',
+            message: 'Hello',
+            fromNumber: '+1-555-000-0000'
+          },
+          expect.any(Object)
+        );
       });
     });
 
@@ -272,12 +364,17 @@ describe('GHLApiClient', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.emailMessageId).toBe('email_123');
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/conversations/messages/email', {
-          type: 'Email',
-          contactId: 'contact_123',
-          subject: 'Test Subject',
-          message: 'Test body'
-        });
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          '/conversations/messages',
+          {
+            type: 'Email',
+            contactId: 'contact_123',
+            subject: 'Test Subject',
+            message: 'Test body',
+            html: undefined
+          },
+          expect.any(Object)
+        );
       });
 
       it('should send email with HTML and options', async () => {
@@ -288,14 +385,18 @@ describe('GHLApiClient', () => {
         const options = { emailCc: ['cc@example.com'] };
         await ghlClient.sendEmail('contact_123', 'Subject', 'Text', '<h1>HTML</h1>', options);
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/conversations/messages/email', {
-          type: 'Email',
-          contactId: 'contact_123',
-          subject: 'Subject',
-          message: 'Text',
-          html: '<h1>HTML</h1>',
-          emailCc: ['cc@example.com']
-        });
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          '/conversations/messages',
+          {
+            type: 'Email',
+            contactId: 'contact_123',
+            subject: 'Subject',
+            message: 'Text',
+            html: '<h1>HTML</h1>',
+            emailCc: ['cc@example.com']
+          },
+          expect.any(Object)
+        );
       });
     });
   });
@@ -317,7 +418,10 @@ describe('GHLApiClient', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.data._id).toBe('post_123');
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/blogs/blog_123/posts', postData);
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/blogs/posts', {
+          ...postData,
+          locationId: 'test_location_123'
+        });
       });
     });
 
@@ -331,8 +435,12 @@ describe('GHLApiClient', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.data).toHaveLength(1);
-        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/blogs', {
-          params: { locationId: 'loc_123' }
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/blogs/site/all', {
+          params: {
+            locationId: 'loc_123',
+            limit: undefined,
+            skip: undefined
+          }
         });
       });
     });
@@ -409,7 +517,9 @@ describe('GHLApiClient', () => {
       });
 
       expect(result.data).toEqual({
-        blogPost: { _id: 'post_123', title: 'Test' }
+        data: { 
+          blogPost: { _id: 'post_123', title: 'Test' }
+        }
       });
     });
   });

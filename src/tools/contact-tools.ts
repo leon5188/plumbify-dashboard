@@ -75,7 +75,7 @@ export class ContactTools {
           properties: {
             firstName: { type: 'string', description: 'Contact first name' },
             lastName: { type: 'string', description: 'Contact last name' },
-            email: { type: 'string', description: 'Contact email address' },
+            email: { type: 'string', format: 'email', description: 'Contact email address' },
             phone: { type: 'string', description: 'Contact phone number' },
             tags: { type: 'array', items: { type: 'string' }, description: 'Tags to assign to contact' },
             source: { type: 'string', description: 'Source of the contact' }
@@ -577,96 +577,173 @@ export class ContactTools {
   // Implementation methods...
 
   // Basic Contact Management
-  private async createContact(params: MCPCreateContactParams): Promise<GHLContact> {
-    const response = await this.ghlClient.createContact({
+  private async createContact(params: MCPCreateContactParams): Promise<any> {
+    try {
+      if (!params.email) {
+        throw new Error('Email is required');
+      }
+      const response = await this.ghlClient.createContact({
         locationId: this.ghlClient.getConfig().locationId,
         firstName: params.firstName,
         lastName: params.lastName,
         email: params.email,
         phone: params.phone,
         tags: params.tags,
-      source: params.source
-    });
+        source: params.source || 'ChatGPT MCP'
+      });
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to create contact');
-    }
-
-    return response.data!;
-  }
-
-  private async searchContacts(params: MCPSearchContactsParams): Promise<GHLSearchContactsResponse> {
-    const response = await this.ghlClient.searchContacts({
-        locationId: this.ghlClient.getConfig().locationId,
-      query: params.query,
-      limit: params.limit,
-      filters: {
-        ...(params.email && { email: params.email }),
-        ...(params.phone && { phone: params.phone })
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create contact');
       }
-    });
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to search contacts');
+      return {
+        success: true,
+        contact: response.data!,
+        message: 'Contact created successfully'
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to create contact: ${error}`);
     }
-
-    return response.data!;
   }
 
-  private async getContact(contactId: string): Promise<GHLContact> {
-    const response = await this.ghlClient.getContact(contactId);
+  private async searchContacts(params: MCPSearchContactsParams): Promise<any> {
+    try {
+      const response = await this.ghlClient.searchContacts({
+        locationId: this.ghlClient.getConfig().locationId,
+        query: params.query,
+        limit: params.limit !== undefined ? params.limit : 25,
+        filters: {
+          ...(params.email && { email: params.email }),
+          ...(params.phone && { phone: params.phone })
+        }
+      });
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to get contact');
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to search contacts');
+      }
+
+      return {
+        success: true,
+        contacts: response.data!.contacts || [],
+        total: response.data!.total || 0,
+        message: `Found ${response.data!.contacts?.length || 0} contacts`
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to search contacts: ${error}`);
     }
-
-    return response.data!;
   }
 
-  private async updateContact(params: MCPUpdateContactParams): Promise<GHLContact> {
-    const response = await this.ghlClient.updateContact(params.contactId, {
-      firstName: params.firstName,
-      lastName: params.lastName,
-      email: params.email,
-      phone: params.phone,
-      tags: params.tags
-    });
+  private async getContact(contactId: string): Promise<any> {
+    try {
+      if (!contactId) {
+        throw new Error('Contact ID is required');
+      }
+      const response = await this.ghlClient.getContact(contactId);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to update contact');
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to get contact');
+      }
+
+      return {
+        success: true,
+        contact: response.data!,
+        message: 'Contact retrieved successfully'
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get contact: ${error}`);
     }
-
-    return response.data!;
   }
 
-  private async deleteContact(contactId: string): Promise<{ succeded: boolean }> {
-    const response = await this.ghlClient.deleteContact(contactId);
+  private async updateContact(params: MCPUpdateContactParams): Promise<any> {
+    try {
+      if (!params.contactId) {
+        throw new Error('Contact ID is required');
+      }
+      const response = await this.ghlClient.updateContact(params.contactId, {
+        firstName: params.firstName,
+        lastName: params.lastName,
+        email: params.email,
+        phone: params.phone,
+        tags: params.tags
+      });
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to delete contact');
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to update contact');
+      }
+
+      return {
+        success: true,
+        contact: response.data!,
+        message: 'Contact updated successfully'
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to update contact: ${error}`);
     }
-
-    return response.data!;
   }
 
-  private async addContactTags(params: MCPAddContactTagsParams): Promise<GHLContactTagsResponse> {
-    const response = await this.ghlClient.addContactTags(params.contactId, params.tags);
+  private async deleteContact(contactId: string): Promise<any> {
+    try {
+      if (!contactId) {
+        throw new Error('Contact ID is required');
+      }
+      const response = await this.ghlClient.deleteContact(contactId);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to add contact tags');
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete contact');
+      }
+
+      return {
+        success: true,
+        message: 'Contact deleted successfully'
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to delete contact: ${error}`);
     }
-
-    return response.data!;
   }
 
-  private async removeContactTags(params: MCPRemoveContactTagsParams): Promise<GHLContactTagsResponse> {
-    const response = await this.ghlClient.removeContactTags(params.contactId, params.tags);
+  private async addContactTags(params: MCPAddContactTagsParams): Promise<any> {
+    try {
+      if (!params.contactId) {
+        throw new Error('Contact ID is required');
+      }
+      if (!params.tags || !Array.isArray(params.tags) || params.tags.length === 0) {
+        throw new Error('Tags array is required');
+      }
+      const response = await this.ghlClient.addContactTags(params.contactId, params.tags);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to remove contact tags');
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to add contact tags');
+      }
+
+      return {
+        success: true,
+        tags: response.data!.tags || [],
+        message: `Successfully added ${params.tags.length} tags`
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to add contact tags: ${error}`);
     }
+  }
 
-    return response.data!;
+  private async removeContactTags(params: MCPRemoveContactTagsParams): Promise<any> {
+    try {
+      if (!params.contactId) {
+        throw new Error('Contact ID is required');
+      }
+      const response = await this.ghlClient.removeContactTags(params.contactId, params.tags);
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to remove contact tags');
+      }
+
+      return {
+        success: true,
+        tags: response.data!.tags || [],
+        message: `Successfully removed ${params.tags.length} tags`
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to remove contact tags: ${error}`);
+    }
   }
 
   // Task Management
