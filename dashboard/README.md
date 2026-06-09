@@ -8,6 +8,7 @@ A modern, responsive Next.js application that visualizes GoHighLevel (GHL) workf
 
 ## Features
 -   **Live Data Sync:** Connects to the GoHighLevel API to pull workflow states, invoice balances, active jobs, and won opportunities.
+-   **Dispatch Chat Console:** Slack/Discord-style three-pane console allowing dispatchers to read and send GHL SMS/Email messages in real-time.
 -   **Financial Analytics:** Computes Month-to-Date (MTD) Revenue, Average Ticket Size, and Unpaid/Overdue balances in real-time.
 -   **Active Jobs Map:** Lists jobs from open opportunities and displays their active status.
 -   **Technician Leaderboard:** Dynamically ranks assigned users based on closed-won job volumes and revenues.
