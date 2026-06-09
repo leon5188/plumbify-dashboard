@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { client } = getClient();
+    const { client, locationId } = getClient();
     console.log(`[Onboarding Webhook] Retrieving details for contact ID: ${contactId}`);
 
     // Fetch contact details from GHL to get the phone number, email, and name
@@ -97,6 +97,27 @@ export async function POST(req: NextRequest) {
       }
     } else {
       console.log('[Onboarding Webhook] Skipping Email welcome: No email address present');
+    }
+
+    // 4. Create opportunity in the [PLMB] Onboarding Pipeline (ckxHKSLsbidJcrf4r8Le)
+    // inside the first stage "Account Created" (0b51c229-4c0b-4f32-a765-cc372fcf1995)
+    console.log(`[Onboarding Webhook] Creating opportunity in Onboarding Pipeline for contact ${contactId}`);
+    const lastName = contact.lastName || '';
+    const opportunityName = `${firstName} ${lastName}`.trim() + ' - Onboarding';
+    
+    const opportunityResponse = await client.createOpportunity({
+      name: opportunityName,
+      pipelineId: 'ckxHKSLsbidJcrf4r8Le',
+      pipelineStageId: '0b51c229-4c0b-4f32-a765-cc372fcf1995',
+      contactId: contactId,
+      status: 'open',
+      locationId: locationId
+    });
+
+    if (!opportunityResponse.success) {
+      console.warn(`[Onboarding Webhook] Warning: Failed to create onboarding opportunity: ${opportunityResponse.error?.message}`);
+    } else {
+      console.log(`[Onboarding Webhook] Onboarding opportunity created successfully with ID: ${opportunityResponse.data?.id}`);
     }
 
     return NextResponse.json({
