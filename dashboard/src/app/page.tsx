@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Calendar, 
+  MessageSquare,
   Users, 
   FileText, 
   TrendingUp, 
@@ -16,6 +17,7 @@ import {
 // Import sub-views
 import DashboardView from '../components/DashboardView';
 import ScheduleView from '../components/ScheduleView';
+import ChatView from '../components/ChatView';
 import TechsView from '../components/TechsView';
 import CustomersView from '../components/CustomersView';
 import InvoicesView from '../components/InvoicesView';
@@ -57,6 +59,8 @@ export default function DashboardPage() {
         return <DashboardView data={data} loading={loading} error={error} />;
       case 'Schedule':
         return <ScheduleView />;
+      case 'Chat':
+        return <ChatView />;
       case 'Techs':
         return <TechsView />;
       case 'Customers':
@@ -90,6 +94,7 @@ export default function DashboardPage() {
           {[
             { name: 'Dashboard', icon: LayoutDashboard },
             { name: 'Schedule', icon: Calendar },
+            { name: 'Chat', icon: MessageSquare },
             { name: 'Techs', icon: Users },
             { name: 'Customers', icon: Users },
             { name: 'Invoices', icon: FileText },
@@ -97,7 +102,7 @@ export default function DashboardPage() {
             { name: 'Settings', icon: SettingsIcon },
           ].map((tab, idx) => {
             const Icon = tab.icon;
-            // Prevent duplicate key if 'Techs' and 'Customers' share same component/name
+            // Prevent duplicate key if tabs share same icons
             const uniqueKey = `${tab.name}-${idx}`;
             const isActive = activeTab === tab.name;
             return (
@@ -129,7 +134,7 @@ export default function DashboardPage() {
             </span>
             <input 
               type="text" 
-              placeholder="Search bookings, invoices, contacts..." 
+              placeholder="Search bookings, invoices, chats..." 
               className="w-full h-10 bg-[#070b16] border border-card-border rounded-lg pl-10 pr-4 text-sm text-foreground placeholder-muted focus:outline-none focus:border-cyan-glow"
             />
           </div>
