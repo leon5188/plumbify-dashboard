@@ -11,7 +11,8 @@ import {
   Settings as SettingsIcon, 
   Search, 
   Bell,
-  Wrench
+  Wrench,
+  Bot
 } from 'lucide-react';
 
 // Import sub-views
@@ -23,6 +24,7 @@ import CustomersView from '../components/CustomersView';
 import InvoicesView from '../components/InvoicesView';
 import ReportsView from '../components/ReportsView';
 import SettingsView from '../components/SettingsView';
+import AIAgentView from '../components/AIAgentView';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -69,6 +71,8 @@ export default function DashboardPage() {
         return <InvoicesView />;
       case 'Reports':
         return <ReportsView />;
+      case 'AI Agent':
+        return <AIAgentView />;
       case 'Settings':
         return <SettingsView />;
       default:
@@ -99,6 +103,7 @@ export default function DashboardPage() {
             { name: 'Customers', icon: Users },
             { name: 'Invoices', icon: FileText },
             { name: 'Reports', icon: TrendingUp },
+            { name: 'AI Agent', icon: Bot },
             { name: 'Settings', icon: SettingsIcon },
           ].map((tab, idx) => {
             const Icon = tab.icon;
